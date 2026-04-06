@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile for students and admins",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "admin"] },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "contact": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "role"]
+    },
+    "Note": {
+      "title": "Note",
+      "description": "Educational notes uploaded by admin",
+      "type": "object",
+      "properties": {
+        "subject": { "type": "string" },
+        "title": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "uploadedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["subject", "title", "pdfUrl"]
+    },
+    "QuestionPaper": {
+      "title": "QuestionPaper",
+      "description": "Previous year or practice question papers",
+      "type": "object",
+      "properties": {
+        "subject": { "type": "string" },
+        "title": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "class": { "type": "string" },
+        "uploadedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["subject", "title", "pdfUrl"]
+    },
+    "TestSchedule": {
+      "title": "TestSchedule",
+      "description": "Upcoming test schedule",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "subject": { "type": "string" },
+        "time": { "type": "string" }
+      },
+      "required": ["date", "subject", "time"]
+    },
+    "Fee": {
+      "title": "Fee",
+      "description": "Fee status for a student",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "totalFees": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Paid", "Pending", "Partially Paid"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "totalFees", "paidAmount", "status"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student record with credentials",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "class": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "username": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["name", "email", "username", "password"]
+    },
+    "Mark": {
+      "title": "Mark",
+      "description": "Marks obtained by a student in a test",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "subject": { "type": "string" },
+        "testName": { "type": "string" },
+        "marksObtained": { "type": "number" },
+        "totalMarks": { "type": "number" },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["studentId", "subject", "testName", "marksObtained", "totalMarks"]
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "Collection of users" },
+    "notes": { "schema": "Note", "description": "Collection of notes" },
+    "questionPapers": { "schema": "QuestionPaper", "description": "Collection of question papers" },
+    "testSchedules": { "schema": "TestSchedule", "description": "Collection of test schedules" },
+    "fees": { "schema": "Fee", "description": "Collection of student fees" },
+    "students": { "schema": "Student", "description": "Collection of students" },
+    "marks": { "schema": "Mark", "description": "Collection of student marks" }
+  }
+}
