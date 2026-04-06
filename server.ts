@@ -1,20 +1,38 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
 
-// Read firebase config manually to avoid import attribute issues
-const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf-8'));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Read firebase config safely
+let firebaseConfig;
+try {
+  const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  } else {
+    // Fallback for different environments
+    const altPath = path.resolve(__dirname, 'firebase-applet-config.json');
+    firebaseConfig = JSON.parse(fs.readFileSync(altPath, 'utf-8'));
+  }
+} catch (err) {
+  console.error('Failed to load Firebase config:', err);
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'infoz-academy-secret-key';
 
-// Initialize Firebase
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+// Initialize Firebase only if config is loaded
+let db: any;
+if (firebaseConfig) {
+  const firebaseApp = initializeApp(firebaseConfig);
+  db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+}
 
 const app = express();
 const PORT = 3000;
@@ -25,7 +43,11 @@ app.use(express.json());
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   
-  // 1. Demo data check (as requested: "dont dont remove the demo id password both has to be there demo and original")
+  if (!db) {
+    return res.status(500).json({ message: 'Database not initialized' });
+  }
+
+  // 1. Demo data check
   if (username === 'student1' && password === '1234') {
     const token = jwt.sign({ username, role: 'student' }, JWT_SECRET, { expiresIn: '1h' });
     return res.json({ token, role: 'student', username });
@@ -35,42 +57,48 @@ app.post('/api/login', async (req, res) => {
     return res.json({ token, role: 'admin', username });
   }
 
-  // 2. Check Firestore for original student credentials
+  // 2. Check Firestore
   try {
     const studentsRef = collection(db, 'students');
     const q = query(studentsRef, where('username', '==', username), where('password', '==', password));
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
-      const studentData = querySnapshot.docs[0].data();
       const token = jwt.sign({ username, role: 'student' }, JWT_SECRET, { expiresIn: '1h' });
       return res.json({ token, role: 'student', username });
     }
   } catch (error) {
-    console.error('Error checking Firestore for user:', error);
+    console.error('Error checking Firestore:', error);
   }
   
   res.status(401).json({ message: 'Invalid credentials' });
 });
 
-async function setupVite() {
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-}
-
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  setupVite();
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.resolve(process.cwd(), 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    // Only serve index.html if it's not an API route
+    if (!req.path.startsWith('/api/')) {
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send('Not Found');
+      }
+    } else {
+      res.status(404).json({ message: 'API route not found' });
+    }
+  });
+} else {
+  // Local development with Vite
+  const { createServer: createViteServer } = await import('vite');
+  const vite = await createViteServer({
+    server: { middlewareMode: true },
+    appType: 'spa',
+  });
+  app.use(vite.middlewares);
 }
 
 if (!process.env.VERCEL) {
